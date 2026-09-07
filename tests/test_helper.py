@@ -187,3 +187,59 @@ def test_main_dispatches_is_installed(monkeypatch, capsys):
     exit_code = helper.main(["is-installed"])
     assert exit_code == 0
     assert '"installed": true' in capsys.readouterr().out
+
+
+def test_ensure_home_readable_writes_dropin_and_reloads(monkeypatch, tmp_path):
+    override_dir = tmp_path / "minidlna.service.d"
+    monkeypatch.setattr(helper, "SANDBOX_OVERRIDE_DIR", str(override_dir))
+    monkeypatch.setattr(helper, "SANDBOX_OVERRIDE_PATH", str(override_dir / "override.conf"))
+
+    captured = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        return FakeCompletedProcess(returncode=0)
+
+    monkeypatch.setattr(helper.subprocess, "run", fake_run)
+
+    result = helper.ensure_home_readable()
+
+    assert result == {"ok": True}
+    assert captured["command"] == ["systemctl", "daemon-reload"]
+    assert (override_dir / "override.conf").read_text() == "[Service]\nProtectHome=read-only\n"
+
+
+def test_ensure_home_readable_reports_daemon_reload_failure(monkeypatch, tmp_path):
+    override_dir = tmp_path / "minidlna.service.d"
+    monkeypatch.setattr(helper, "SANDBOX_OVERRIDE_DIR", str(override_dir))
+    monkeypatch.setattr(helper, "SANDBOX_OVERRIDE_PATH", str(override_dir / "override.conf"))
+
+    def fake_run(command, **kwargs):
+        raise subprocess.CalledProcessError(1, command)
+
+    monkeypatch.setattr(helper.subprocess, "run", fake_run)
+
+    result = helper.ensure_home_readable()
+    assert result["ok"] is False
+
+
+def test_write_config_dispatch_also_ensures_home_access(monkeypatch):
+    monkeypatch.setattr(helper, "write_config", lambda content: {"ok": True, "path": "/etc/minidlna.conf"})
+    monkeypatch.setattr(helper, "ensure_home_readable", lambda: {"ok": False, "error": "boom"})
+    monkeypatch.setattr(helper.sys, "stdin", type("_S", (), {"read": staticmethod(lambda: "port=8200\n")})())
+
+    exit_code = helper.main(["write-config"])
+
+    assert exit_code == 0  # the config write itself succeeded; the sandbox tweak is best-effort
+
+
+def test_write_config_dispatch_skips_home_access_when_write_fails(monkeypatch):
+    monkeypatch.setattr(helper, "write_config", lambda content: {"ok": False, "error": "disk full"})
+    calls = []
+    monkeypatch.setattr(helper, "ensure_home_readable", lambda: calls.append(1))
+    monkeypatch.setattr(helper.sys, "stdin", type("_S", (), {"read": staticmethod(lambda: "port=8200\n")})())
+
+    exit_code = helper.main(["write-config"])
+
+    assert exit_code == 1
+    assert calls == []

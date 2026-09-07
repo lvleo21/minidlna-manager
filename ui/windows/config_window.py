@@ -9,6 +9,7 @@ from gi.repository import Adw, Gio, GLib, Gtk
 
 from core import service_client
 from core.config_parser import MiniDLNAConfig
+from core.media_access import grant_directory_access
 from core.validator import (
     LOG_CATEGORIES,
     ValidationError,
@@ -157,8 +158,21 @@ class ConfigWindow(Adw.Window):
             folder = dialog.select_folder_finish(result)
         except GLib.Error:
             return
-        if folder is not None and folder.get_path():
-            entry_row.set_text(folder.get_path())
+        path = folder.get_path() if folder is not None else None
+        if not path:
+            return
+        entry_row.set_text(path)
+        run_async(lambda: grant_directory_access(path), self._on_directory_access_granted)
+
+    def _on_directory_access_granted(self, result: dict | None, error: Exception | None) -> bool:
+        if error is not None or not (result or {}).get("ok"):
+            show_error_toast(
+                self.toast_overlay,
+                "Não foi possível garantir acesso do MiniDLNA à pasta selecionada",
+                error,
+                result,
+            )
+        return False
 
     # -- log level ------------------------------------------------------------------
 
@@ -271,6 +285,14 @@ class ConfigWindow(Adw.Window):
         if error is not None or not (result or {}).get("ok"):
             show_error_toast(self.toast_overlay, "Falha ao salvar o config", error, result)
             return False
+        sandbox_warning = (result or {}).get("sandbox_warning")
+        if sandbox_warning:
+            show_error_toast(
+                self.toast_overlay,
+                "Config salvo, mas o serviço pode não conseguir ler pastas em sua pasta pessoal",
+                None,
+                {"error": sandbox_warning},
+            )
         toast = Adw.Toast(title="Config salvo.", button_label="Reiniciar agora")
         toast.connect("button-clicked", lambda _t: run_async(service_client.restart, self._on_restart_done))
         self.toast_overlay.add_toast(toast)

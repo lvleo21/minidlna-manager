@@ -129,6 +129,10 @@ def write_config(content: str) -> dict:
     return _run_privileged("write-config", stdin_data=content)
 
 
+def ensure_home_access() -> dict:
+    return _run_privileged("ensure-home-access")
+
+
 def get_active_state() -> str:
     """`systemctl is-active` needs no privilege — any user can query unit state."""
     proc = subprocess.run(
