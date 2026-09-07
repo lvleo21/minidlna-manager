@@ -49,17 +49,30 @@ na primeira execução.
 
 Depois de instalado, abra pelo menu de aplicativos ou rode `minidlna-manager`.
 
+### Debian / Ubuntu
+
+Builde o `.deb` a partir do código-fonte:
+
+```bash
+cd packaging/deb
+./build-deb.sh
+sudo apt install ./dist/minidlna-manager_*_all.deb
+```
+
+O `build-deb.sh` usa só `dpkg-deb`, então também roda fora do Debian (no Arch,
+`pacman -S dpkg`). Ver `packaging/deb/README.md` para o layout do pacote e as
+dependências.
+
 ### Outras distros
 
-Ainda não há pacote `.deb` nem Flatpak prontos — ver `packaging/deb/README.md`
-e `packaging/flatpak/README.md`. Enquanto isso, dá para rodar direto do
-código-fonte (ver "Desenvolvimento" abaixo) desde que o helper e a regra
-Polkit sejam instalados manualmente:
+Ainda não há Flatpak pronto — ver `packaging/flatpak/README.md`. Enquanto
+isso, dá para rodar direto do código-fonte (ver "Desenvolvimento" abaixo)
+desde que o helper e a regra Polkit sejam instalados manualmente:
 
 ```bash
 sudo install -Dm755 helper/minidlna_manager_helper.py /usr/lib/minidlna-manager/helper
-sudo install -Dm644 policy/com.leo.minidlnamanager.policy \
-  /usr/share/polkit-1/actions/com.leo.minidlnamanager.policy
+sudo install -Dm644 policy/com.lvleo21.minidlnamanager.policy \
+  /usr/share/polkit-1/actions/com.lvleo21.minidlnamanager.policy
 ```
 
 ## Desenvolvimento

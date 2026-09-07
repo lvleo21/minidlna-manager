@@ -1,0 +1,18 @@
+Package: minidlna-manager
+Version: @VERSION@
+Section: net
+Priority: optional
+Architecture: all
+Maintainer: lvleo21 <33973789+lvleo21@users.noreply.github.com>
+Depends: python3 (>= 3.10), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, pkexec | policykit-1, acl, systemd
+Recommends: minidlna
+Installed-Size: @INSTALLED_SIZE@
+Homepage: https://github.com/lvleo21/minidlna-manager
+Description: Desktop app to manage the MiniDLNA service
+ GTK4/libadwaita application to manage the MiniDLNA (DLNA/UPnP-AV) server:
+ start, stop, restart and enable the service at boot, read its log, edit
+ /etc/minidlna.conf through a validated form and inspect connected devices.
+ .
+ The UI never runs elevated: every privileged operation goes through a
+ dedicated helper authorized via Polkit. MiniDLNA itself is only recommended,
+ not required -- the app offers to install it on first run if missing.

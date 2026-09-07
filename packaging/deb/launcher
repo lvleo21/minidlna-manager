@@ -1,0 +1,14 @@
+#!/usr/bin/python3
+"""System launcher for minidlna-manager (Debian package).
+
+The `core` and `ui` packages are installed under a private directory rather
+than /usr/lib/python3/dist-packages: those names are far too generic to claim
+in the shared system namespace, and nothing outside this app imports them.
+"""
+import sys
+
+sys.path.insert(0, "/usr/share/minidlna-manager")
+
+from ui.app import main  # noqa: E402
+
+sys.exit(main())

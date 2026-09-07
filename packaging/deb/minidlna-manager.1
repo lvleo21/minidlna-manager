@@ -1,0 +1,47 @@
+.TH MINIDLNA\-MANAGER 1 "2026-09-07" "minidlna-manager 0.1.0" "User Commands"
+.SH NAME
+minidlna\-manager \- desktop app to manage the MiniDLNA service
+.SH SYNOPSIS
+.B minidlna\-manager
+.SH DESCRIPTION
+.B minidlna\-manager
+is a GTK4/libadwaita application that manages the MiniDLNA (DLNA/UPnP\-AV)
+server: it starts, stops and restarts the service, toggles whether it starts at
+boot, shows the last lines of its log, edits
+.I /etc/minidlna.conf
+through a validated form (server name, port, network interface, per\-category
+log level and media directories) and lists the currently connected devices.
+.PP
+It takes no command line arguments; it is normally launched from the
+application menu.
+.SH PRIVILEGES
+The interface itself never runs elevated. Every operation that needs root
+.RB ( systemctl ,
+writing
+.IR /etc/minidlna.conf ,
+installing the MiniDLNA package) is delegated to
+.IR /usr/lib/minidlna\-manager/helper ,
+which is invoked through
+.BR pkexec (1)
+and authorized by the Polkit action
+.BR com.lvleo21.minidlnamanager.manage .
+The helper accepts only a fixed set of subcommands and never runs a
+caller\-supplied command.
+.SH FILES
+.TP
+.I /etc/minidlna.conf
+MiniDLNA configuration file edited by the application.
+.TP
+.I /usr/lib/minidlna\-manager/helper
+Privileged helper.
+.TP
+.I /usr/share/polkit\-1/actions/com.lvleo21.minidlnamanager.policy
+Polkit action defining the authorization required by the helper.
+.SH SEE ALSO
+.BR minidlnad (8),
+.BR minidlna.conf (5),
+.BR pkexec (1)
+.SH AUTHOR
+lvleo21.
+.SH BUGS
+Report issues at https://github.com/lvleo21/minidlna\-manager/issues

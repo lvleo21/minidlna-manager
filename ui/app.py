@@ -15,7 +15,7 @@ from ui.windows.main_window import MainWindow
 class MiniDLNAManagerApp(Adw.Application):
     def __init__(self) -> None:
         super().__init__(
-            application_id="com.leo.minidlnamanager", flags=Gio.ApplicationFlags.DEFAULT_FLAGS
+            application_id="com.lvleo21.minidlnamanager", flags=Gio.ApplicationFlags.DEFAULT_FLAGS
         )
 
     def do_activate(self) -> None:

@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  deb-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches the packaged version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml | head -1)"
+          if [ "$tag" != "$pkg" ]; then
+            echo "tag $GITHUB_REF_NAME does not match pyproject version $pkg" >&2
+            exit 1
+          fi
+
+      # build-deb.sh also refuses to build if packaging/deb/changelog and
+      # pyproject.toml disagree, so all three versions are checked here.
+      - name: Build .deb
+        run: packaging/deb/build-deb.sh
+
+      - name: Lint package
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lintian
+          lintian --fail-on error,warning \
+            --suppress-tags initial-upload-closes-no-bugs \
+            packaging/deb/dist/*.deb
+
+      - name: Install, smoke-test and purge
+        run: packaging/deb/test-deb.sh packaging/deb/dist/*.deb
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Publishing from the GitHub UI creates the tag and the release at
+          # once, so this job can start before the release exists; pushing the
+          # tag from git alone may mean it never does.
+          for _ in 1 2 3 4 5; do
+            gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 && break
+            echo "release $GITHUB_REF_NAME not published yet, waiting..."
+            sleep 10
+          done
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" packaging/deb/dist/*.deb --clobber

@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+# core/ and ui/ live outside dist-packages, so dh_python3's automatic
+# byte-compilation doesn't apply -- do it here, and undo it in prerm, so no
+# __pycache__ is left behind on removal.
+if [ "$1" = "configure" ] && command -v py3compile >/dev/null 2>&1; then
+    py3compile -p minidlna-manager /usr/share/minidlna-manager
+fi
+
+exit 0

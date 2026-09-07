@@ -5,7 +5,7 @@ description = "Aplicativo desktop GTK4/libadwaita para gerenciar o serviço Mini
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Leo" }]
+authors = [{ name = "lvleo21" }]
 dependencies = ["PyGObject>=3.42"]
 
 [project.scripts]
