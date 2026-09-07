@@ -1,0 +1,26 @@
+[project]
+name = "minidlna-manager"
+version = "0.1.0"
+description = "Aplicativo desktop GTK4/libadwaita para gerenciar o serviço MiniDLNA no Linux"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Leo" }]
+dependencies = ["PyGObject>=3.42"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["core*", "helper*", "ui*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
