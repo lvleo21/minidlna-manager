@@ -28,15 +28,24 @@ por um helper dedicado, autorizado via Polkit.
 
 ### Arch / Manjaro
 
+Baixe o `.pkg.tar.zst` pronto na [página de releases](https://github.com/lvleo21/minidlna-manager/releases/latest) e instale:
+
+```bash
+sudo pacman -U minidlna-manager-*.pkg.tar.zst
+```
+
+Ou builde a partir do código-fonte:
+
 ```bash
 cd packaging/arch
 makepkg -si
 ```
 
-Instala o app, o helper privilegiado (`/usr/lib/minidlna-manager/helper`) e a
-regra Polkit (`/usr/share/polkit-1/actions/`). O MiniDLNA em si não é uma
-dependência obrigatória do pacote — se estiver ausente, o próprio app oferece
-instalá-lo na primeira execução.
+Qualquer um dos dois instala o app, o helper privilegiado
+(`/usr/lib/minidlna-manager/helper`) e a regra Polkit
+(`/usr/share/polkit-1/actions/`). O MiniDLNA em si não é uma dependência
+obrigatória do pacote — se estiver ausente, o próprio app oferece instalá-lo
+na primeira execução.
 
 Depois de instalado, abra pelo menu de aplicativos ou rode `minidlna-manager`.
 
