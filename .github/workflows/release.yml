@@ -35,8 +35,15 @@ jobs:
             --suppress-tags initial-upload-closes-no-bugs \
             packaging/deb/dist/*.deb
 
-      - name: Install, smoke-test and purge
-        run: packaging/deb/test-deb.sh packaging/deb/dist/*.deb
+      # Matches the CI matrix: the oldest supported stack (all libadwaita
+      # fallbacks) and the newest (all native widgets).
+      - name: Install, open the window and purge on the oldest and newest stacks
+        run: |
+          for image in ubuntu:22.04 debian:trixie; do
+            echo "== $image"
+            docker run --rm -v "$PWD/packaging/deb:/src:ro" -w /tmp "$image" \
+              bash -c 'cp -r /src /work && cd /work && ./test-deb.sh dist/*.deb'
+          done
 
       - name: Attach to the release
         env:

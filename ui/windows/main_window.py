@@ -9,6 +9,7 @@ from gi.repository import Adw, Gtk
 
 from core import service_client
 from ui.async_utils import run_async
+from ui.compat import Banner, ToolbarView, add_page
 from ui.controllers.config_controller import ConfigController
 from ui.controllers.devices_controller import DevicesController
 from ui.controllers.status_controller import StatusController
@@ -47,21 +48,19 @@ class MainWindow(Adw.ApplicationWindow):
         self.config_controller = ConfigController(config_view, self.toast_overlay)
         self.devices_controller = DevicesController(devices_view, self.toast_overlay)
 
-        self.view_stack.add_titled_with_icon(status_view, "status", "Status", "utilities-system-monitor-symbolic")
-        self.view_stack.add_titled_with_icon(
-            config_view, "config", "Configuração", "preferences-system-symbolic"
-        )
-        self.view_stack.add_titled_with_icon(
-            devices_view, "devices", "Dispositivos", "network-workgroup-symbolic"
+        add_page(self.view_stack, status_view, "status", "Status", "utilities-system-monitor-symbolic")
+        add_page(self.view_stack, config_view, "config", "Configuração", "preferences-system-symbolic")
+        add_page(
+            self.view_stack, devices_view, "devices", "Dispositivos", "network-workgroup-symbolic"
         )
 
         view_switcher = Adw.ViewSwitcher(stack=self.view_stack, policy=Adw.ViewSwitcherPolicy.WIDE)
         header = Adw.HeaderBar(title_widget=view_switcher)
 
-        toolbar_view = Adw.ToolbarView()
+        toolbar_view = ToolbarView()
         toolbar_view.add_top_bar(header)
 
-        self.install_banner = Adw.Banner(title="MiniDLNA não está instalado")
+        self.install_banner = Banner(title="MiniDLNA não está instalado")
         self.install_banner.set_button_label("Instalar MiniDLNA")
         self.install_banner.connect("button-clicked", self._on_install_clicked)
 
@@ -91,7 +90,7 @@ class MainWindow(Adw.ApplicationWindow):
             )
         return False
 
-    def _on_install_clicked(self, _banner: Adw.Banner) -> None:
+    def _on_install_clicked(self, _banner: Banner) -> None:
         self.install_banner.set_sensitive(False)
         self.install_banner.set_button_label("Instalando…")
         run_async(service_client.install_package, self._on_install_done)

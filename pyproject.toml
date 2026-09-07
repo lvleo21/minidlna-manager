@@ -1,6 +1,6 @@
 [project]
 name = "minidlna-manager"
-version = "0.2.0"
+version = "0.2.1"
 description = "Aplicativo desktop GTK4/libadwaita para gerenciar o serviço MiniDLNA no Linux"
 readme = "README.md"
 requires-python = ">=3.10"

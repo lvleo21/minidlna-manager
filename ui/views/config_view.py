@@ -7,9 +7,10 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Adw, Gio, GLib, GObject, Gtk
+from gi.repository import Adw, GObject, Gtk
 
 from core.validator import LOG_CATEGORIES
+from ui.compat import EntryRow, select_folder
 
 MEDIA_DIR_TYPE_LABELS = ["(todos)", "Áudio (A)", "Vídeo (V)", "Fotos (P)"]
 MEDIA_DIR_TYPE_VALUES = [None, "A", "V", "P"]
@@ -62,8 +63,8 @@ class ConfigView(Gtk.ScrolledWindow):
         save_row.append(self.save_button)
 
         general_group = Adw.PreferencesGroup(title="Geral")
-        self.friendly_name_row = Adw.EntryRow(title="Nome do servidor")
-        self.port_row = Adw.EntryRow(title="Porta")
+        self.friendly_name_row = EntryRow(title="Nome do servidor")
+        self.port_row = EntryRow(title="Porta")
 
         self.interface_dropdown = Gtk.DropDown.new_from_strings(self.interface_values)
         interface_row = Adw.ActionRow(title="Interface de rede")
@@ -117,7 +118,7 @@ class ConfigView(Gtk.ScrolledWindow):
     # -- media dir rows: purely internal UI state, no controller round-trip needed --
 
     def add_media_dir_row(self, type_part: str | None = None, path: str = "") -> None:
-        entry_row = Adw.EntryRow(title="Diretório")
+        entry_row = EntryRow(title="Diretório")
         entry_row.set_text(path)
 
         type_dropdown = Gtk.DropDown.new_from_strings(MEDIA_DIR_TYPE_LABELS)
@@ -149,20 +150,14 @@ class ConfigView(Gtk.ScrolledWindow):
         for row_data in list(self.media_dir_rows):
             self._remove_media_dir_row(row_data)
 
-    def _browse_media_dir(self, entry_row: Adw.EntryRow) -> None:
-        dialog = Gtk.FileDialog(title="Selecionar diretório de mídia")
-        dialog.select_folder(
-            self.get_root(), None, lambda dlg, result: self._on_folder_selected(dlg, result, entry_row)
+    def _browse_media_dir(self, entry_row: EntryRow) -> None:
+        select_folder(
+            self.get_root(),
+            "Selecionar diretório de mídia",
+            lambda path: self._on_folder_selected(path, entry_row),
         )
 
-    def _on_folder_selected(self, dialog: Gtk.FileDialog, result: Gio.AsyncResult, entry_row: Adw.EntryRow) -> None:
-        try:
-            folder = dialog.select_folder_finish(result)
-        except GLib.Error:
-            return
-        path = folder.get_path() if folder is not None else None
-        if not path:
-            return
+    def _on_folder_selected(self, path: str, entry_row: EntryRow) -> None:
         entry_row.set_text(path)
         self.emit("media-dir-selected", path)
 
@@ -217,17 +212,11 @@ class ConfigView(Gtk.ScrolledWindow):
     # -- error / sensitivity API -----------------------------------------------------
 
     def set_port_error(self, has_error: bool) -> None:
-        if has_error:
-            self.port_row.add_css_class("error")
-        else:
-            self.port_row.remove_css_class("error")
+        self.port_row.set_error(has_error)
 
     def set_media_dir_errors(self, indices: set[int]) -> None:
         for index, row_data in enumerate(self.media_dir_rows):
-            if index in indices:
-                row_data["entry_row"].add_css_class("error")
-            else:
-                row_data["entry_row"].remove_css_class("error")
+            row_data["entry_row"].set_error(index in indices)
 
     def clear_errors(self) -> None:
         self.set_port_error(False)

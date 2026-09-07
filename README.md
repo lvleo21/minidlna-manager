@@ -49,15 +49,26 @@ na primeira execução.
 
 Depois de instalado, abra pelo menu de aplicativos ou rode `minidlna-manager`.
 
-### Debian / Ubuntu
+### Debian / Ubuntu / Mint
 
-Builde o `.deb` a partir do código-fonte:
+Baixe o `.deb` pronto na [página de releases](https://github.com/lvleo21/minidlna-manager/releases/latest)
+e instale:
+
+```bash
+sudo apt install ./minidlna-manager_*_all.deb
+```
+
+Ou builde a partir do código-fonte:
 
 ```bash
 cd packaging/deb
 ./build-deb.sh
 sudo apt install ./dist/minidlna-manager_*_all.deb
 ```
+
+Requer GTK 4.6 e libadwaita 1.1 ou mais novos — ou seja, Ubuntu 22.04+,
+Debian 12+ e Mint 21+. O pacote declara esses pisos, então o apt recusa um
+sistema mais antigo em vez de instalar algo que não abre.
 
 O `build-deb.sh` usa só `dpkg-deb`, então também roda fora do Debian (no Arch,
 `pacman -S dpkg`). Ver `packaging/deb/README.md` para o layout do pacote e as
@@ -87,3 +98,10 @@ python -m ui.app   # roda o app a partir do código-fonte
 Requer PyGObject com GTK4 e libadwaita instalados no sistema (não é possível
 instalar via pip puro — normalmente vêm do gerenciador de pacotes da distro,
 ex.: `python-gobject`, `gtk4`, `libadwaita` no Arch).
+
+A UI é escrita contra o libadwaita moderno, mas roda a partir do 1.1: os
+widgets introduzidos depois disso (`Adw.SwitchRow`, `Adw.ToolbarView`,
+`Adw.Banner`, `Adw.EntryRow`, `Gtk.FileDialog`) passam por `ui/compat.py`, que
+usa o widget nativo quando ele existe e um equivalente montado com primitivas
+do 1.0 quando não. Ao usar um widget novo, adicione o fallback lá — a CI abre a
+janela em Ubuntu 22.04 e falha se ele não existir.

@@ -9,6 +9,8 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, GObject, Gtk
 
+from ui.compat import SwitchRow
+
 
 class StatusView(Gtk.ScrolledWindow):
     """Service status, controls and log — pure display.
@@ -33,7 +35,7 @@ class StatusView(Gtk.ScrolledWindow):
 
     def _build_content(self) -> Gtk.Widget:
         self.status_row = Adw.ActionRow(title="Serviço", subtitle="Desconhecido")
-        self.boot_switch_row = Adw.SwitchRow(title="Iniciar no boot")
+        self.boot_switch_row = SwitchRow(title="Iniciar no boot")
         self.boot_switch_row.connect("notify::active", self._on_boot_switch_notify)
 
         status_group = Adw.PreferencesGroup(title="Status")
@@ -109,7 +111,7 @@ class StatusView(Gtk.ScrolledWindow):
 
     # -- internal ----------------------------------------------------------------------
 
-    def _on_boot_switch_notify(self, switch_row: Adw.SwitchRow, _pspec) -> None:
+    def _on_boot_switch_notify(self, switch_row: SwitchRow, _pspec) -> None:
         if self._updating_boot_switch:
             return
         self.emit("boot-toggled", switch_row.get_active())

@@ -43,10 +43,34 @@ jobs:
             --suppress-tags initial-upload-closes-no-bugs \
             packaging/deb/dist/*.deb
 
-      - name: Install, smoke-test and purge
-        run: packaging/deb/test-deb.sh packaging/deb/dist/*.deb
-
       - uses: actions/upload-artifact@v4
         with:
           name: deb-package
           path: packaging/deb/dist/*.deb
+
+  # The app is built against modern libadwaita but falls back to 1.0-era
+  # widgets on older stacks (see ui/compat.py). Installing and opening the
+  # window on both ends of that range is the only thing that catches a widget
+  # that doesn't exist on the older one -- an import test does not.
+  deb-install:
+    needs: deb-package
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - ubuntu:22.04 # GTK 4.6, libadwaita 1.1 -- every fallback in use
+          - debian:bookworm # GTK 4.8, libadwaita 1.2 -- mixed
+          - ubuntu:24.04 # GTK 4.14, libadwaita 1.5 -- all native
+          - debian:trixie # GTK 4.18, libadwaita 1.7 -- all native
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb-package
+          path: packaging/deb/dist
+
+      - name: Install, open the window and purge
+        run: packaging/deb/test-deb.sh packaging/deb/dist/*.deb
