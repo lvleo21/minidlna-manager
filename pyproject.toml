@@ -8,6 +8,9 @@ license = { text = "MIT" }
 authors = [{ name = "Leo" }]
 dependencies = ["PyGObject>=3.42"]
 
+[project.scripts]
+minidlna-manager = "ui.app:main"
+
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4"]
 
@@ -16,7 +19,10 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["core*", "helper*", "ui*"]
+# helper/ is deliberately excluded: it's a standalone privileged script,
+# never imported as a package, installed separately by packaging (see
+# packaging/arch/PKGBUILD) to /usr/lib/minidlna-manager/helper.
+include = ["core*", "ui*"]
 
 [tool.ruff]
 line-length = 100

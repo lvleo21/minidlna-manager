@@ -1,0 +1,50 @@
+# Maintainer: Leo
+pkgname=minidlna-manager
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Aplicativo desktop GTK4/libadwaita para gerenciar o serviço MiniDLNA"
+arch=('any')
+url="https://github.com/lvleo21/minidlna-manager"
+license=('MIT')
+depends=(
+  'python'
+  'python-gobject'
+  'gtk4'
+  'libadwaita'
+  'polkit'
+  'acl'
+  'systemd'
+)
+optdepends=('minidlna: servidor DLNA/UPnP-AV gerenciado pelo app (o próprio app oferece instalar se ausente)')
+makedepends=('python-build' 'python-installer' 'python-wheel')
+source=()
+sha256sums=()
+
+# Runs directly against the working tree this PKGBUILD lives in (repo_root =
+# two levels up from packaging/arch/) — there's no upstream release tarball
+# yet, so there's nothing meaningful for source()/pkgver() to fetch or pin.
+_repo_root() {
+  cd "$startdir/../.."
+  pwd
+}
+
+build() {
+  cd "$(_repo_root)"
+  python -m build --wheel --no-isolation --outdir "$startdir/dist"
+}
+
+package() {
+  local repo_root
+  repo_root="$(_repo_root)"
+  cd "$repo_root"
+
+  python -m installer --destdir="$pkgdir" "$startdir"/dist/*.whl
+
+  install -Dm755 helper/minidlna_manager_helper.py \
+    "$pkgdir/usr/lib/minidlna-manager/helper"
+  install -Dm644 policy/com.leo.minidlnamanager.policy \
+    "$pkgdir/usr/share/polkit-1/actions/com.leo.minidlnamanager.policy"
+  install -Dm644 packaging/arch/minidlna-manager.desktop \
+    "$pkgdir/usr/share/applications/minidlna-manager.desktop"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
