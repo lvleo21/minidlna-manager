@@ -160,3 +160,54 @@ def test_main_rejects_unknown_action(capsys):
 def test_main_requires_an_argument(capsys):
     exit_code = service_client._main([])
     assert exit_code == 2
+
+
+def test_get_active_state_runs_unprivileged_systemctl(monkeypatch):
+    captured = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        return FakeCompletedProcess(stdout="active\n")
+
+    monkeypatch.setattr(service_client.subprocess, "run", fake_run)
+    assert service_client.get_active_state() == "active"
+    assert captured["command"] == ["systemctl", "is-active", "minidlna.service"]
+    assert captured["command"][0] != "pkexec"
+
+
+def test_get_enabled_state_returns_unknown_on_empty_output(monkeypatch):
+    monkeypatch.setattr(
+        service_client.subprocess, "run", lambda *a, **k: FakeCompletedProcess(returncode=1, stdout="")
+    )
+    assert service_client.get_enabled_state() == "unknown"
+
+
+def test_get_status_combines_active_and_enabled(monkeypatch):
+    outputs = iter(["active\n", "enabled\n"])
+    monkeypatch.setattr(
+        service_client.subprocess,
+        "run",
+        lambda *a, **k: FakeCompletedProcess(stdout=next(outputs)),
+    )
+    assert service_client.get_status() == {"active": "active", "enabled": "enabled"}
+
+
+def test_get_recent_logs_returns_stdout_on_success(monkeypatch):
+    captured = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        return FakeCompletedProcess(stdout="log line 1\nlog line 2\n")
+
+    monkeypatch.setattr(service_client.subprocess, "run", fake_run)
+    assert service_client.get_recent_logs(50) == "log line 1\nlog line 2\n"
+    assert captured["command"] == ["journalctl", "-u", "minidlna.service", "-n", "50", "--no-pager"]
+
+
+def test_get_recent_logs_returns_stderr_on_failure(monkeypatch):
+    monkeypatch.setattr(
+        service_client.subprocess,
+        "run",
+        lambda *a, **k: FakeCompletedProcess(returncode=1, stderr="no journal access"),
+    )
+    assert service_client.get_recent_logs() == "no journal access"

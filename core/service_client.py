@@ -15,6 +15,7 @@ from pathlib import Path
 INSTALLED_HELPER_PATH = "/usr/lib/minidlna-manager/helper"
 DEV_HELPER_PATH = str(Path(__file__).resolve().parent.parent / "helper" / "minidlna_manager_helper.py")
 
+SERVICE_NAME = "minidlna.service"
 DEFAULT_TIMEOUT = 30
 INSTALL_TIMEOUT = 600
 
@@ -126,6 +127,35 @@ def install_package() -> dict:
 
 def write_config(content: str) -> dict:
     return _run_privileged("write-config", stdin_data=content)
+
+
+def get_active_state() -> str:
+    """`systemctl is-active` needs no privilege — any user can query unit state."""
+    proc = subprocess.run(
+        ["systemctl", "is-active", SERVICE_NAME], capture_output=True, text=True, check=False
+    )
+    return proc.stdout.strip() or "unknown"
+
+
+def get_enabled_state() -> str:
+    proc = subprocess.run(
+        ["systemctl", "is-enabled", SERVICE_NAME], capture_output=True, text=True, check=False
+    )
+    return proc.stdout.strip() or "unknown"
+
+
+def get_status() -> dict:
+    return {"active": get_active_state(), "enabled": get_enabled_state()}
+
+
+def get_recent_logs(lines: int = 200) -> str:
+    proc = subprocess.run(
+        ["journalctl", "-u", SERVICE_NAME, "-n", str(lines), "--no-pager"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return proc.stdout if proc.returncode == 0 else proc.stderr
 
 
 def _main(argv: list[str] | None = None) -> int:
