@@ -1,3 +1,12 @@
+minidlna-manager (0.2.0-1) unstable; urgency=medium
+
+  * Rename the application and Polkit action id from com.leo.minidlnamanager
+    to com.lvleo21.minidlnamanager; the policy file is renamed to match, so
+    the first privileged action after the upgrade prompts once more.
+  * Build, lint and smoke-test the package in CI, and attach it to releases.
+
+ -- lvleo21 <33973789+lvleo21@users.noreply.github.com>  Mon, 07 Sep 2026 15:51:33 -0300
+
 minidlna-manager (0.1.0-1) unstable; urgency=medium
 
   * Initial Debian package: app, privileged helper, Polkit action and
