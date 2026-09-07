@@ -14,3 +14,6 @@ dist/
 pkg/
 src/
 *.pkg.tar.*
+
+# local-only notes (manual testing logs, scratch docs) — not committed
+docs/
