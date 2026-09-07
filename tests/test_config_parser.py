@@ -48,11 +48,16 @@ def test_get_all_returns_every_media_dir(sample_text):
     ]
 
 
-def test_set_replaces_value_in_place(sample_text):
+def test_set_replaces_value_at_the_same_line(sample_text):
     config = MiniDLNAConfig.parse(sample_text)
     config.set("port", "9200")
     lines = config.serialize().splitlines()
     assert lines.index("port=9200") == sample_text.splitlines().index("port=8200")
+
+
+def test_set_replaces_value_read_back_by_get(sample_text):
+    config = MiniDLNAConfig.parse(sample_text)
+    config.set("port", "9200")
     assert config.get("port") == "9200"
 
 
@@ -80,34 +85,58 @@ def test_remove_all_entries_for_key(sample_text):
     assert config.get_all("media_dir") == []
 
 
-def test_comments_and_blank_lines_are_preserved_after_edits(sample_text):
+@pytest.fixture
+def serialized_after_edits(sample_text) -> str:
     config = MiniDLNAConfig.parse(sample_text)
     config.set("port", "9200")
     config.add("media_dir", "P,/srv/media/photos")
-    serialized = config.serialize()
-    assert "# Sample minidlna.conf used by the test suite." in serialized
-    assert "# Network" in serialized
-    assert serialized.count("\n\n") == sample_text.count("\n\n")
+    return config.serialize()
 
 
-def test_edit_cycle_is_semantically_equivalent_plus_expected_changes(sample_text):
+def test_edits_preserve_leading_comment(serialized_after_edits):
+    assert "# Sample minidlna.conf used by the test suite." in serialized_after_edits
+
+
+def test_edits_preserve_section_comment(serialized_after_edits):
+    assert "# Network" in serialized_after_edits
+
+
+def test_edits_preserve_blank_line_count(sample_text, serialized_after_edits):
+    assert serialized_after_edits.count("\n\n") == sample_text.count("\n\n")
+
+
+@pytest.fixture
+def reparsed_after_edit_cycle(sample_text) -> MiniDLNAConfig:
+    """parse -> edit -> serialize -> reparse, exercising the full round
+    trip the Sprint 1 acceptance criterion describes."""
     config = MiniDLNAConfig.parse(sample_text)
-
     config.set("port", "9200")
     config.remove("media_dir", "V,/srv/media/videos")
     config.add("media_dir", "P,/srv/media/photos")
+    return MiniDLNAConfig.parse(config.serialize())
 
-    reparsed = MiniDLNAConfig.parse(config.serialize())
 
-    assert reparsed.get("port") == "9200"
-    assert reparsed.get_all("media_dir") == [
+def test_edit_cycle_applies_the_port_change(reparsed_after_edit_cycle):
+    assert reparsed_after_edit_cycle.get("port") == "9200"
+
+
+def test_edit_cycle_applies_the_media_dir_changes(reparsed_after_edit_cycle):
+    assert reparsed_after_edit_cycle.get_all("media_dir") == [
         "A,/srv/media/music",
         "/srv/media/mixed",
         "P,/srv/media/photos",
     ]
-    # everything untouched by the edits above must still match the original
-    assert reparsed.get("network_interface") == "eth0"
-    assert reparsed.get("friendly_name") == "MiniDLNA"
-    assert reparsed.get("log_level") == (
+
+
+def test_edit_cycle_leaves_network_interface_untouched(reparsed_after_edit_cycle):
+    assert reparsed_after_edit_cycle.get("network_interface") == "eth0"
+
+
+def test_edit_cycle_leaves_friendly_name_untouched(reparsed_after_edit_cycle):
+    assert reparsed_after_edit_cycle.get("friendly_name") == "MiniDLNA"
+
+
+def test_edit_cycle_leaves_log_level_untouched(reparsed_after_edit_cycle):
+    assert reparsed_after_edit_cycle.get("log_level") == (
         "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn"
     )

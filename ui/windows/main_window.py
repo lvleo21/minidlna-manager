@@ -9,13 +9,21 @@ from gi.repository import Adw, Gtk
 
 from core import service_client
 from ui.async_utils import run_async
+from ui.controllers.config_controller import ConfigController
+from ui.controllers.devices_controller import DevicesController
+from ui.controllers.status_controller import StatusController
 from ui.toast_utils import show_error_toast, show_toast
-from ui.widgets.config_page import ConfigPage
-from ui.widgets.devices_page import DevicesPage
-from ui.widgets.status_page import StatusPage
+from ui.views.config_view import ConfigView
+from ui.views.devices_view import DevicesView
+from ui.views.status_view import StatusView
 
 
 class MainWindow(Adw.ApplicationWindow):
+    """Composition root: builds the three tabs (view + controller pairs)
+    and owns the cross-cutting install-gate (banner + install flow) that
+    doesn't belong to any single page.
+    """
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.set_title("MiniDLNA Manager")
@@ -30,13 +38,22 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _build_content(self) -> Gtk.Widget:
         self.view_stack = Adw.ViewStack()
-        self.status_page = StatusPage(self.toast_overlay)
-        self.config_page = ConfigPage(self.toast_overlay)
-        self.devices_page = DevicesPage(self.toast_overlay)
 
-        self.view_stack.add_titled_with_icon(self.status_page, "status", "Status", "utilities-system-monitor-symbolic")
-        self.view_stack.add_titled_with_icon(self.config_page, "config", "Configuração", "preferences-system-symbolic")
-        self.view_stack.add_titled_with_icon(self.devices_page, "devices", "Dispositivos", "network-workgroup-symbolic")
+        status_view = StatusView()
+        config_view = ConfigView()
+        devices_view = DevicesView()
+
+        self.status_controller = StatusController(status_view, self.toast_overlay)
+        self.config_controller = ConfigController(config_view, self.toast_overlay)
+        self.devices_controller = DevicesController(devices_view, self.toast_overlay)
+
+        self.view_stack.add_titled_with_icon(status_view, "status", "Status", "utilities-system-monitor-symbolic")
+        self.view_stack.add_titled_with_icon(
+            config_view, "config", "Configuração", "preferences-system-symbolic"
+        )
+        self.view_stack.add_titled_with_icon(
+            devices_view, "devices", "Dispositivos", "network-workgroup-symbolic"
+        )
 
         view_switcher = Adw.ViewSwitcher(stack=self.view_stack, policy=Adw.ViewSwitcherPolicy.WIDE)
         header = Adw.HeaderBar(title_widget=view_switcher)
@@ -48,10 +65,10 @@ class MainWindow(Adw.ApplicationWindow):
         self.install_banner.set_button_label("Instalar MiniDLNA")
         self.install_banner.connect("button-clicked", self._on_install_clicked)
 
+        self.view_stack.set_vexpand(True)
         content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content_box.append(self.install_banner)
         content_box.append(self.view_stack)
-        self.view_stack.set_vexpand(True)
 
         toolbar_view.set_content(content_box)
         self.toast_overlay.set_child(toolbar_view)
@@ -65,9 +82,9 @@ class MainWindow(Adw.ApplicationWindow):
     def _on_installed_checked(self, result: dict | None, error: Exception | None) -> bool:
         installed = bool(result) and result.get("installed", False)
         self.install_banner.set_revealed(not installed)
-        self.status_page.set_installed(installed)
-        self.config_page.set_installed(installed)
-        self.devices_page.set_installed(installed)
+        self.status_controller.set_installed(installed)
+        self.config_controller.set_installed(installed)
+        self.devices_controller.set_installed(installed)
         if not installed and error is not None:
             show_error_toast(
                 self.toast_overlay, "Não foi possível checar se o MiniDLNA está instalado", error, result

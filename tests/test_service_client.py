@@ -31,7 +31,8 @@ def test_helper_path_falls_back_to_dev_path(monkeypatch):
     assert service_client._helper_path() == service_client.DEV_HELPER_PATH
 
 
-def test_is_installed_runs_helper_without_pkexec(monkeypatch):
+@pytest.fixture
+def is_installed_run(monkeypatch) -> dict:
     captured = {}
 
     def fake_run(command, **kwargs):
@@ -40,22 +41,30 @@ def test_is_installed_runs_helper_without_pkexec(monkeypatch):
 
     monkeypatch.setattr(service_client.subprocess, "run", fake_run)
     result = service_client.is_installed()
-    assert captured["command"][0] != "pkexec"
-    assert result == {"ok": True, "installed": False}
+    return {"captured": captured, "result": result}
 
 
-@pytest.mark.parametrize(
-    "func_name,expected_action",
-    [
-        ("start", "start"),
-        ("stop", "stop"),
-        ("restart", "restart"),
-        ("enable", "enable"),
-        ("disable", "disable"),
-        ("install_package", "install-package"),
-    ],
-)
-def test_privileged_actions_go_through_pkexec(monkeypatch, func_name, expected_action):
+def test_is_installed_runs_helper_without_pkexec(is_installed_run):
+    assert is_installed_run["captured"]["command"][0] != "pkexec"
+
+
+def test_is_installed_returns_the_parsed_result(is_installed_run):
+    assert is_installed_run["result"] == {"ok": True, "installed": False}
+
+
+PRIVILEGED_ACTIONS = [
+    ("start", "start"),
+    ("stop", "stop"),
+    ("restart", "restart"),
+    ("enable", "enable"),
+    ("disable", "disable"),
+    ("install_package", "install-package"),
+]
+
+
+@pytest.fixture(params=PRIVILEGED_ACTIONS, ids=[name for name, _ in PRIVILEGED_ACTIONS])
+def privileged_action_run(request, monkeypatch) -> dict:
+    func_name, expected_action = request.param
     captured = {}
 
     def fake_run(command, **kwargs):
@@ -65,12 +74,23 @@ def test_privileged_actions_go_through_pkexec(monkeypatch, func_name, expected_a
     monkeypatch.setattr(service_client.subprocess, "run", fake_run)
     func = getattr(service_client, func_name)
     result = func()
-    assert captured["command"][0] == "pkexec"
-    assert captured["command"][-1] == expected_action
-    assert result == {"ok": True}
+    return {"captured": captured, "result": result, "expected_action": expected_action}
 
 
-def test_write_config_sends_content_via_stdin(monkeypatch):
+def test_privileged_actions_go_through_pkexec(privileged_action_run):
+    assert privileged_action_run["captured"]["command"][0] == "pkexec"
+
+
+def test_privileged_actions_pass_the_expected_action_name(privileged_action_run):
+    assert privileged_action_run["captured"]["command"][-1] == privileged_action_run["expected_action"]
+
+
+def test_privileged_actions_return_the_parsed_result(privileged_action_run):
+    assert privileged_action_run["result"] == {"ok": True}
+
+
+@pytest.fixture
+def write_config_run(monkeypatch) -> dict:
     captured = {}
 
     def fake_run(command, **kwargs):
@@ -80,8 +100,15 @@ def test_write_config_sends_content_via_stdin(monkeypatch):
 
     monkeypatch.setattr(service_client.subprocess, "run", fake_run)
     service_client.write_config("port=8200\n")
-    assert captured["command"][-1] == "write-config"
-    assert captured["input"] == "port=8200\n"
+    return captured
+
+
+def test_write_config_invokes_the_write_config_action(write_config_run):
+    assert write_config_run["command"][-1] == "write-config"
+
+
+def test_write_config_sends_content_via_stdin(write_config_run):
+    assert write_config_run["input"] == "port=8200\n"
 
 
 def test_run_privileged_raises_permission_denied_on_126(monkeypatch):
@@ -142,14 +169,22 @@ def test_parse_result_falls_back_to_raw_output_when_not_json():
     assert result == {"ok": False, "exit_code": 1, "stdout": "not json", "stderr": "boom"}
 
 
-def test_main_reports_error_from_service_client_error(monkeypatch, capsys):
+@pytest.fixture
+def main_error_run(monkeypatch, capsys) -> dict:
     def fake_start():
         raise service_client.PermissionDeniedError("negado")
 
     monkeypatch.setattr(service_client, "start", fake_start)
     exit_code = service_client._main(["start"])
-    assert exit_code == 1
-    assert "negado" in capsys.readouterr().out
+    return {"exit_code": exit_code, "stdout": capsys.readouterr().out}
+
+
+def test_main_reports_error_exit_code(main_error_run):
+    assert main_error_run["exit_code"] == 1
+
+
+def test_main_reports_error_message_from_service_client_error(main_error_run):
+    assert "negado" in main_error_run["stdout"]
 
 
 def test_main_rejects_unknown_action(capsys):
@@ -162,7 +197,8 @@ def test_main_requires_an_argument(capsys):
     assert exit_code == 2
 
 
-def test_get_active_state_runs_unprivileged_systemctl(monkeypatch):
+@pytest.fixture
+def active_state_run(monkeypatch) -> dict:
     captured = {}
 
     def fake_run(command, **kwargs):
@@ -170,9 +206,19 @@ def test_get_active_state_runs_unprivileged_systemctl(monkeypatch):
         return FakeCompletedProcess(stdout="active\n")
 
     monkeypatch.setattr(service_client.subprocess, "run", fake_run)
-    assert service_client.get_active_state() == "active"
-    assert captured["command"] == ["systemctl", "is-active", "minidlna.service"]
-    assert captured["command"][0] != "pkexec"
+    return {"captured": captured, "state": service_client.get_active_state()}
+
+
+def test_get_active_state_returns_the_reported_state(active_state_run):
+    assert active_state_run["state"] == "active"
+
+
+def test_get_active_state_runs_the_expected_command(active_state_run):
+    assert active_state_run["captured"]["command"] == ["systemctl", "is-active", "minidlna.service"]
+
+
+def test_get_active_state_runs_without_pkexec(active_state_run):
+    assert active_state_run["captured"]["command"][0] != "pkexec"
 
 
 def test_get_enabled_state_returns_unknown_on_empty_output(monkeypatch):
@@ -192,7 +238,8 @@ def test_get_status_combines_active_and_enabled(monkeypatch):
     assert service_client.get_status() == {"active": "active", "enabled": "enabled"}
 
 
-def test_get_recent_logs_returns_stdout_on_success(monkeypatch):
+@pytest.fixture
+def recent_logs_run(monkeypatch) -> dict:
     captured = {}
 
     def fake_run(command, **kwargs):
@@ -200,8 +247,22 @@ def test_get_recent_logs_returns_stdout_on_success(monkeypatch):
         return FakeCompletedProcess(stdout="log line 1\nlog line 2\n")
 
     monkeypatch.setattr(service_client.subprocess, "run", fake_run)
-    assert service_client.get_recent_logs(50) == "log line 1\nlog line 2\n"
-    assert captured["command"] == ["journalctl", "-u", "minidlna.service", "-n", "50", "--no-pager"]
+    return {"captured": captured, "logs": service_client.get_recent_logs(50)}
+
+
+def test_get_recent_logs_returns_stdout_on_success(recent_logs_run):
+    assert recent_logs_run["logs"] == "log line 1\nlog line 2\n"
+
+
+def test_get_recent_logs_runs_the_expected_command(recent_logs_run):
+    assert recent_logs_run["captured"]["command"] == [
+        "journalctl",
+        "-u",
+        "minidlna.service",
+        "-n",
+        "50",
+        "--no-pager",
+    ]
 
 
 def test_get_recent_logs_returns_stderr_on_failure(monkeypatch):
