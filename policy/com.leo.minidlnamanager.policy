@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>Leo</vendor>
+  <vendor_url>https://github.com/lvleo21/minidlna-manager</vendor_url>
+  <icon_name>network-server</icon_name>
+
+  <!--
+    A UI invokes the helper as `pkexec /usr/lib/minidlna-manager/helper <ação>`.
+    pkexec authorizes by exec path, not by argv, so a single action covers every
+    subcommand (start/stop/restart/enable/disable/write-config/install-package);
+    the helper itself enforces the fixed whitelist of subcommands (see RNF02).
+  -->
+  <action id="com.leo.minidlnamanager.manage">
+    <description>Manage the MiniDLNA service, its configuration file and package installation</description>
+    <message>Authentication is required to manage MiniDLNA</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/minidlna-manager/helper</annotate>
+  </action>
+</policyconfig>
