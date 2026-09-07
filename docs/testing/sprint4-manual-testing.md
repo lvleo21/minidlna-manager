@@ -12,9 +12,9 @@ helper e a regra Polkit já instalados (ver `docs/testing/sprint2-manual-testing
 python -m ui.app
 ```
 
-Com o MiniDLNA instalado, clique no ícone de engrenagem no cabeçalho. Esperado:
-janela "Configuração do MiniDLNA" com os campos carregados a partir do
-`/etc/minidlna.conf` real (porta, nível de log, diretórios de mídia).
+Com o MiniDLNA instalado, clique na aba "Configuração" no cabeçalho. Esperado:
+os campos carregados a partir do `/etc/minidlna.conf` real (nome do servidor,
+porta, interface de rede, nível de log, diretórios de mídia).
 
 ## 2. Editar e salvar
 
@@ -60,3 +60,13 @@ mostra mais `Media directory ... not accessible` nem
 `Error reading configuration file`, e `systemctl status minidlna.service`
 mostra o serviço `active (running)` com
 `Drop-In: .../minidlna.service.d/minidlna-manager-protecthome.conf` listado.
+
+## 6. Aba de dispositivos conectados
+
+A aba "Dispositivos" lê a própria página `/status` do `minidlnad`
+(`http://127.0.0.1:<porta>/status`, sem privilégio) e mostra os clientes DLNA
+que já falaram com o servidor. Abra um cliente DLNA real na rede (uma TV,
+app tipo VLC/BubbleUPnP) e navegue até o MiniDLNA. Esperado: o dispositivo
+aparece na lista com tipo, IP e MAC; a aba se atualiza sozinha a cada ~15s ou
+manualmente pelo botão "Atualizar". Com o serviço parado, a aba mostra
+"MiniDLNA não está respondendo" em vez de travar.

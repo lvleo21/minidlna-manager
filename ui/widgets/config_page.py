@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import socket
+
 import gi
 
 gi.require_version("Gtk", "4.0")
@@ -39,35 +41,50 @@ LOG_LEVEL_VALUES = ["off", "fatal", "error", "warn", "info", "debug"]
 LOG_LEVEL_LABELS = ["Desligado", "Fatal", "Erro", "Aviso", "Info", "Depuração"]
 DEFAULT_LOG_LEVEL = "warn"
 
+AUTO_INTERFACE_LABEL = "(automático)"
 
-class ConfigWindow(Adw.Window):
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.set_title("Configuração do MiniDLNA")
-        self.set_default_size(560, 720)
 
+def _available_network_interfaces() -> list[str]:
+    try:
+        return sorted(name for _, name in socket.if_nameindex())
+    except OSError:
+        return []
+
+
+class ConfigPage(Gtk.ScrolledWindow):
+    """Structured minidlna.conf editor: general server settings, log
+    level and the list of media directories."""
+
+    def __init__(self, toast_overlay: Adw.ToastOverlay, **kwargs) -> None:
+        super().__init__(vexpand=True, **kwargs)
+        self.toast_overlay = toast_overlay
         self.config: MiniDLNAConfig | None = None
         self.media_dir_rows: list[dict] = []
         self.log_category_checks: dict[str, Gtk.CheckButton] = {}
-
-        self.toast_overlay = Adw.ToastOverlay()
-        self.set_content(self._build_content())
-        self._load_config()
+        self.interface_values: list[str] = [AUTO_INTERFACE_LABEL]
+        self.set_child(self._build_content())
 
     # -- layout -----------------------------------------------------------------
 
     def _build_content(self) -> Gtk.Widget:
-        toolbar_view = Adw.ToolbarView()
-        header = Adw.HeaderBar()
+        save_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, halign=Gtk.Align.END)
         self.save_button = Gtk.Button(label="Salvar")
         self.save_button.add_css_class("suggested-action")
         self.save_button.connect("clicked", self._on_save_clicked)
-        header.pack_end(self.save_button)
-        toolbar_view.add_top_bar(header)
+        save_row.append(self.save_button)
 
         general_group = Adw.PreferencesGroup(title="Geral")
+        self.friendly_name_row = Adw.EntryRow(title="Nome do servidor")
         self.port_row = Adw.EntryRow(title="Porta")
+
+        self.interface_values = [AUTO_INTERFACE_LABEL, *_available_network_interfaces()]
+        self.interface_dropdown = Gtk.DropDown.new_from_strings(self.interface_values)
+        interface_row = Adw.ActionRow(title="Interface de rede")
+        interface_row.add_suffix(self.interface_dropdown)
+
+        general_group.add(self.friendly_name_row)
         general_group.add(self.port_row)
+        general_group.add(interface_row)
 
         log_group = Adw.PreferencesGroup(
             title="Nível de log", description="Categorias monitoradas e verbosidade"
@@ -101,19 +118,14 @@ class ConfigWindow(Adw.Window):
         self.media_dir_group.set_header_suffix(add_button)
 
         content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        content_box.append(save_row)
         content_box.append(general_group)
         content_box.append(log_group)
         content_box.append(self.media_dir_group)
 
         clamp = Adw.Clamp(margin_top=18, margin_bottom=18, margin_start=18, margin_end=18)
         clamp.set_child(content_box)
-
-        scroller = Gtk.ScrolledWindow(vexpand=True)
-        scroller.set_child(clamp)
-
-        toolbar_view.set_content(scroller)
-        self.toast_overlay.set_child(toolbar_view)
-        return self.toast_overlay
+        return clamp
 
     def _add_media_dir_row(self, type_part: str | None = None, path: str = "") -> None:
         entry_row = Adw.EntryRow(title="Diretório")
@@ -151,7 +163,8 @@ class ConfigWindow(Adw.Window):
 
     def _browse_media_dir(self, entry_row: Adw.EntryRow) -> None:
         dialog = Gtk.FileDialog(title="Selecionar diretório de mídia")
-        dialog.select_folder(self, None, lambda dlg, result: self._on_folder_selected(dlg, result, entry_row))
+        root = self.get_root()
+        dialog.select_folder(root, None, lambda dlg, result: self._on_folder_selected(dlg, result, entry_row))
 
     def _on_folder_selected(self, dialog: Gtk.FileDialog, result: Gio.AsyncResult, entry_row: Adw.EntryRow) -> None:
         try:
@@ -173,6 +186,18 @@ class ConfigWindow(Adw.Window):
                 result,
             )
         return False
+
+    # -- network interface ------------------------------------------------------------
+
+    def _apply_interface_to_form(self, value: str) -> None:
+        if value and value in self.interface_values:
+            self.interface_dropdown.set_selected(self.interface_values.index(value))
+        else:
+            self.interface_dropdown.set_selected(0)
+
+    def _interface_value(self) -> str:
+        selected = self.interface_values[self.interface_dropdown.get_selected()]
+        return "" if selected == AUTO_INTERFACE_LABEL else selected
 
     # -- log level ------------------------------------------------------------------
 
@@ -206,6 +231,11 @@ class ConfigWindow(Adw.Window):
 
     # -- load ---------------------------------------------------------------------
 
+    def set_installed(self, installed: bool) -> None:
+        self.save_button.set_sensitive(installed)
+        if installed:
+            self._load_config()
+
     def _load_config(self) -> None:
         run_async(MiniDLNAConfig.load, self._on_config_loaded)
 
@@ -215,7 +245,9 @@ class ConfigWindow(Adw.Window):
             self.save_button.set_sensitive(False)
             return False
         self.config = config
+        self.friendly_name_row.set_text(config.get("friendly_name") or "")
         self.port_row.set_text(config.get("port") or "")
+        self._apply_interface_to_form(config.get("network_interface") or "")
         self._apply_log_level_to_form(config.get("log_level") or "")
         for value in config.get_all("media_dir"):
             type_part, path = parse_media_dir(value)
@@ -267,6 +299,18 @@ class ConfigWindow(Adw.Window):
                 self.toast_overlay, "Corrija os campos destacados", None, {"error": "; ".join(errors)}
             )
             return
+
+        friendly_name = self.friendly_name_row.get_text().strip()
+        if friendly_name:
+            self.config.set("friendly_name", friendly_name)
+        else:
+            self.config.remove("friendly_name")
+
+        interface_value = self._interface_value()
+        if interface_value:
+            self.config.set("network_interface", interface_value)
+        else:
+            self.config.remove("network_interface")
 
         self.config.set("port", port_value)
         if log_level_value:
