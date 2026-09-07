@@ -1,3 +1,14 @@
+minidlna-manager (0.2.1-1) unstable; urgency=medium
+
+  * Run on GTK 4.6 / libadwaita 1.1 (Ubuntu 22.04, Linux Mint 21.x) again:
+    the rows and containers introduced after libadwaita 1.1 now fall back to
+    equivalents built from 1.0 primitives, so 0.2.0 no longer fails at
+    startup on those systems.
+  * Declare the GTK and libadwaita versions actually required, so apt refuses
+    an unsupported system instead of installing an app that cannot start.
+
+ -- lvleo21 <33973789+lvleo21@users.noreply.github.com>  Mon, 07 Sep 2026 16:19:43 -0300
+
 minidlna-manager (0.2.0-1) unstable; urgency=medium
 
   * Rename the application and Polkit action id from com.leo.minidlnamanager
