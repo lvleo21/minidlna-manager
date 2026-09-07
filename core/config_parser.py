@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+DEFAULT_CONFIG_PATH = "/etc/minidlna.conf"
+
 
 class MiniDLNAConfig:
     """In-memory, order-preserving representation of a minidlna.conf file.
@@ -15,6 +19,11 @@ class MiniDLNAConfig:
     @classmethod
     def parse(cls, text: str) -> MiniDLNAConfig:
         return cls(text.splitlines())
+
+    @classmethod
+    def load(cls, path: str = DEFAULT_CONFIG_PATH) -> MiniDLNAConfig:
+        """Read `path` directly — no privilege needed, minidlna.conf ships root:root 644."""
+        return cls.parse(Path(path).read_text())
 
     def serialize(self) -> str:
         if not self._lines:

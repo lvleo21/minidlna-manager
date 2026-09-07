@@ -17,6 +17,18 @@ def test_roundtrip_is_lossless(sample_text):
     assert config.serialize() == sample_text
 
 
+def test_load_reads_and_parses_file(tmp_path, sample_text):
+    config_path = tmp_path / "minidlna.conf"
+    config_path.write_text(sample_text)
+    config = MiniDLNAConfig.load(str(config_path))
+    assert config.get("port") == "8200"
+
+
+def test_load_raises_when_file_is_missing(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        MiniDLNAConfig.load(str(tmp_path / "does-not-exist.conf"))
+
+
 def test_get_returns_last_value_for_key(sample_text):
     config = MiniDLNAConfig.parse(sample_text)
     assert config.get("port") == "8200"

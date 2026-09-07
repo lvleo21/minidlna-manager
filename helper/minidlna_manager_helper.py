@@ -13,6 +13,7 @@ import contextlib
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -22,6 +23,10 @@ PACKAGE_NAME = "minidlna"
 DEFAULT_CONFIG_PATH = "/etc/minidlna.conf"
 SYSTEMCTL_TIMEOUT = 30
 INSTALL_TIMEOUT = 600
+
+SANDBOX_OVERRIDE_DIR = "/etc/systemd/system/minidlna.service.d"
+SANDBOX_OVERRIDE_PATH = f"{SANDBOX_OVERRIDE_DIR}/minidlna-manager-protecthome.conf"
+SANDBOX_OVERRIDE_CONTENT = "[Service]\nProtectHome=read-only\n"
 
 PACKAGE_MANAGER_BINARIES = {
     "apt": "apt-get",
@@ -120,12 +125,21 @@ def systemctl_action(action: str) -> dict:
 def write_config(content: str, path: str = DEFAULT_CONFIG_PATH) -> dict:
     if not content.strip():
         return {"ok": False, "path": path, "error": "conteúdo de config vazio"}
+    try:
+        # minidlnad drops privileges to run as its own user/group, so it
+        # needs to be able to read this file; preserve the mode of the file
+        # being replaced (or fall back to a world-readable default for a
+        # brand new one) rather than inheriting mkstemp's 0600.
+        mode = stat.S_IMODE(os.stat(path).st_mode)
+    except OSError:
+        mode = 0o644
     directory = os.path.dirname(path) or "."
     try:
         fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=".minidlna.conf.")
     except OSError as exc:
         return {"ok": False, "path": path, "error": str(exc)}
     try:
+        os.chmod(tmp_path, mode)
         with os.fdopen(fd, "w") as tmp_file:
             tmp_file.write(content)
         os.replace(tmp_path, path)
@@ -136,12 +150,39 @@ def write_config(content: str, path: str = DEFAULT_CONFIG_PATH) -> dict:
     return {"ok": True, "path": path}
 
 
+def ensure_home_readable() -> dict:
+    """minidlna.service ships with ProtectHome=on, which hides /home from
+    the daemon entirely — no ACL on the real filesystem can make a
+    media_dir under a user's home readable while that's in effect, since
+    the sandbox never lets the process reach the real files at all.
+    Override it to read-only (still blocks writes) via a drop-in, the
+    standard way to adjust a systemd unit without touching the package's
+    own file. A restart is still needed for a running daemon to pick it
+    up — offered by the UI right after a config save.
+    """
+    try:
+        os.makedirs(SANDBOX_OVERRIDE_DIR, exist_ok=True)
+        with open(SANDBOX_OVERRIDE_PATH, "w") as override_file:
+            override_file.write(SANDBOX_OVERRIDE_CONTENT)
+        subprocess.run(
+            ["systemctl", "daemon-reload"],
+            capture_output=True,
+            text=True,
+            timeout=SYSTEMCTL_TIMEOUT,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True}
+
+
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="minidlna-manager-helper")
     subparsers = parser.add_subparsers(dest="action", required=True)
     subparsers.add_parser("is-installed")
     subparsers.add_parser("install-package")
     subparsers.add_parser("write-config")
+    subparsers.add_parser("ensure-home-access")
     for action in ("start", "stop", "restart", "enable", "disable"):
         subparsers.add_parser(action)
     return parser
@@ -154,8 +195,14 @@ def main(argv: list[str] | None = None) -> int:
         result = is_installed()
     elif args.action == "install-package":
         result = install_package()
+    elif args.action == "ensure-home-access":
+        result = ensure_home_readable()
     elif args.action == "write-config":
         result = write_config(sys.stdin.read())
+        if result.get("ok"):
+            sandbox_result = ensure_home_readable()
+            if not sandbox_result.get("ok"):
+                result["sandbox_warning"] = sandbox_result.get("error")
     else:
         result = systemctl_action(args.action)
 
