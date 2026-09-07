@@ -9,3 +9,8 @@ htmlcov/
 venv/
 build/
 dist/
+
+# makepkg build artifacts (packaging/arch/)
+pkg/
+src/
+*.pkg.tar.*

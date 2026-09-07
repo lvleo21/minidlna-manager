@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=MiniDLNA Manager
+Comment=Gerencia o serviço MiniDLNA
+Exec=minidlna-manager
+Icon=network-server
+Terminal=false
+Categories=Network;Settings;
