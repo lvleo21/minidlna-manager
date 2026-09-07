@@ -145,6 +145,24 @@ def test_write_config_writes_content_atomically(tmp_path):
     assert target.read_text() == "port=8200\n"
 
 
+def test_write_config_preserves_existing_file_mode(tmp_path):
+    target = tmp_path / "minidlna.conf"
+    target.write_text("port=8000\n")
+    target.chmod(0o644)
+
+    helper.write_config("port=8200\n", path=str(target))
+
+    assert target.stat().st_mode & 0o777 == 0o644
+
+
+def test_write_config_defaults_to_world_readable_for_new_file(tmp_path):
+    target = tmp_path / "minidlna.conf"
+
+    helper.write_config("port=8200\n", path=str(target))
+
+    assert target.stat().st_mode & 0o777 == 0o644
+
+
 def test_write_config_rejects_empty_content(tmp_path):
     target = tmp_path / "minidlna.conf"
     result = helper.write_config("   \n", path=str(target))

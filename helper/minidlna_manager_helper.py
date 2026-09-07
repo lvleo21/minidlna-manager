@@ -13,6 +13,7 @@ import contextlib
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -120,12 +121,21 @@ def systemctl_action(action: str) -> dict:
 def write_config(content: str, path: str = DEFAULT_CONFIG_PATH) -> dict:
     if not content.strip():
         return {"ok": False, "path": path, "error": "conteúdo de config vazio"}
+    try:
+        # minidlnad drops privileges to run as its own user/group, so it
+        # needs to be able to read this file; preserve the mode of the file
+        # being replaced (or fall back to a world-readable default for a
+        # brand new one) rather than inheriting mkstemp's 0600.
+        mode = stat.S_IMODE(os.stat(path).st_mode)
+    except OSError:
+        mode = 0o644
     directory = os.path.dirname(path) or "."
     try:
         fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=".minidlna.conf.")
     except OSError as exc:
         return {"ok": False, "path": path, "error": str(exc)}
     try:
+        os.chmod(tmp_path, mode)
         with os.fdopen(fd, "w") as tmp_file:
             tmp_file.write(content)
         os.replace(tmp_path, path)
