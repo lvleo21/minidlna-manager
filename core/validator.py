@@ -87,3 +87,39 @@ def validate_log_level(value: str) -> None:
                 raise ValidationError(f"nível de log inválido: {level!r}")
         elif token not in LOG_CATEGORIES:
             raise ValidationError(f"categoria de log inválida: {token!r}")
+
+
+def format_media_dir(type_part: str | None, path: str) -> str:
+    return f"{type_part},{path}" if type_part else path
+
+
+def parse_log_level(value: str, default_level: str = "warn") -> tuple[set[str], str]:
+    """Best-effort parse of a log_level value into (categories, level).
+
+    Lossy if the string mixes different levels per category: the
+    config-editing UI only supports one level applied to every checked
+    category, so the last level token found wins.
+    """
+    categories: set[str] = set()
+    level = default_level
+    for token in value.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        if "=" in token:
+            category, _, token_level = token.partition("=")
+            category = category.strip()
+            token_level = token_level.strip()
+            if category:
+                categories.add(category)
+            if token_level in LOG_LEVELS:
+                level = token_level
+        else:
+            categories.add(token)
+    return categories, level
+
+
+def format_log_level(categories: set[str], level: str) -> str:
+    if not categories:
+        return ""
+    return ",".join(sorted(categories)) + f"={level}"
