@@ -5,11 +5,12 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Adw, Gtk
+from gi.repository import Adw, Gio, GLib, Gtk
 
 from core import service_client
 from core.config_parser import MiniDLNAConfig
 from core.validator import (
+    LOG_CATEGORIES,
     ValidationError,
     parse_media_dir,
     validate_log_level,
@@ -22,15 +23,31 @@ from ui.toast_utils import show_error_toast, show_toast
 MEDIA_DIR_TYPE_LABELS = ["(todos)", "Áudio (A)", "Vídeo (V)", "Fotos (P)"]
 MEDIA_DIR_TYPE_VALUES = [None, "A", "V", "P"]
 
+LOG_CATEGORY_LABELS = {
+    "general": "Geral",
+    "artwork": "Capas",
+    "database": "Banco de dados",
+    "inotify": "Monitoramento de arquivos",
+    "scanner": "Scanner de mídia",
+    "metadata": "Metadados",
+    "http": "HTTP",
+    "ssdp": "SSDP",
+    "tivo": "TiVo",
+}
+LOG_LEVEL_VALUES = ["off", "fatal", "error", "warn", "info", "debug"]
+LOG_LEVEL_LABELS = ["Desligado", "Fatal", "Erro", "Aviso", "Info", "Depuração"]
+DEFAULT_LOG_LEVEL = "warn"
+
 
 class ConfigWindow(Adw.Window):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.set_title("Configuração do MiniDLNA")
-        self.set_default_size(560, 640)
+        self.set_default_size(560, 720)
 
         self.config: MiniDLNAConfig | None = None
         self.media_dir_rows: list[dict] = []
+        self.log_category_checks: dict[str, Gtk.CheckButton] = {}
 
         self.toast_overlay = Adw.ToastOverlay()
         self.set_content(self._build_content())
@@ -49,9 +66,32 @@ class ConfigWindow(Adw.Window):
 
         general_group = Adw.PreferencesGroup(title="Geral")
         self.port_row = Adw.EntryRow(title="Porta")
-        self.log_level_row = Adw.EntryRow(title="Nível de log")
         general_group.add(self.port_row)
-        general_group.add(self.log_level_row)
+
+        log_group = Adw.PreferencesGroup(
+            title="Nível de log", description="Categorias monitoradas e verbosidade"
+        )
+        self.log_level_dropdown = Gtk.DropDown.new_from_strings(LOG_LEVEL_LABELS)
+        self.log_level_dropdown.set_selected(LOG_LEVEL_VALUES.index(DEFAULT_LOG_LEVEL))
+        level_row = Adw.ActionRow(title="Verbosidade")
+        level_row.add_suffix(self.log_level_dropdown)
+        log_group.add(level_row)
+
+        categories_flow = Gtk.FlowBox(
+            selection_mode=Gtk.SelectionMode.NONE,
+            max_children_per_line=3,
+            row_spacing=6,
+            column_spacing=12,
+            margin_top=6,
+            margin_bottom=6,
+            margin_start=12,
+            margin_end=12,
+        )
+        for category in sorted(LOG_CATEGORIES):
+            check = Gtk.CheckButton(label=LOG_CATEGORY_LABELS.get(category, category))
+            self.log_category_checks[category] = check
+            categories_flow.append(check)
+        log_group.add(categories_flow)
 
         self.media_dir_group = Adw.PreferencesGroup(title="Diretórios de mídia")
         add_button = Gtk.Button(icon_name="list-add-symbolic")
@@ -61,6 +101,7 @@ class ConfigWindow(Adw.Window):
 
         content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
         content_box.append(general_group)
+        content_box.append(log_group)
         content_box.append(self.media_dir_group)
 
         clamp = Adw.Clamp(margin_top=18, margin_bottom=18, margin_start=18, margin_end=18)
@@ -82,6 +123,12 @@ class ConfigWindow(Adw.Window):
         type_dropdown.set_selected(index)
         entry_row.add_prefix(type_dropdown)
 
+        browse_button = Gtk.Button(icon_name="folder-open-symbolic")
+        browse_button.set_tooltip_text("Selecionar pasta")
+        browse_button.add_css_class("flat")
+        browse_button.connect("clicked", lambda _b: self._browse_media_dir(entry_row))
+        entry_row.add_suffix(browse_button)
+
         remove_button = Gtk.Button(icon_name="user-trash-symbolic")
         remove_button.add_css_class("flat")
         entry_row.add_suffix(remove_button)
@@ -101,6 +148,48 @@ class ConfigWindow(Adw.Window):
         path = row_data["entry_row"].get_text().strip()
         return f"{type_part},{path}" if type_part else path
 
+    def _browse_media_dir(self, entry_row: Adw.EntryRow) -> None:
+        dialog = Gtk.FileDialog(title="Selecionar diretório de mídia")
+        dialog.select_folder(self, None, lambda dlg, result: self._on_folder_selected(dlg, result, entry_row))
+
+    def _on_folder_selected(self, dialog: Gtk.FileDialog, result: Gio.AsyncResult, entry_row: Adw.EntryRow) -> None:
+        try:
+            folder = dialog.select_folder_finish(result)
+        except GLib.Error:
+            return
+        if folder is not None and folder.get_path():
+            entry_row.set_text(folder.get_path())
+
+    # -- log level ------------------------------------------------------------------
+
+    def _apply_log_level_to_form(self, value: str) -> None:
+        selected_categories: set[str] = set()
+        level = DEFAULT_LOG_LEVEL
+        for token in value.split(","):
+            token = token.strip()
+            if not token:
+                continue
+            if "=" in token:
+                category, _, token_level = token.partition("=")
+                category = category.strip()
+                token_level = token_level.strip()
+                if category:
+                    selected_categories.add(category)
+                if token_level in LOG_LEVEL_VALUES:
+                    level = token_level
+            else:
+                selected_categories.add(token)
+        for category, check in self.log_category_checks.items():
+            check.set_active(category in selected_categories)
+        self.log_level_dropdown.set_selected(LOG_LEVEL_VALUES.index(level))
+
+    def _log_level_value(self) -> str:
+        selected = sorted(c for c, check in self.log_category_checks.items() if check.get_active())
+        if not selected:
+            return ""
+        level = LOG_LEVEL_VALUES[self.log_level_dropdown.get_selected()]
+        return ",".join(selected) + f"={level}"
+
     # -- load ---------------------------------------------------------------------
 
     def _load_config(self) -> None:
@@ -113,7 +202,7 @@ class ConfigWindow(Adw.Window):
             return False
         self.config = config
         self.port_row.set_text(config.get("port") or "")
-        self.log_level_row.set_text(config.get("log_level") or "")
+        self._apply_log_level_to_form(config.get("log_level") or "")
         for value in config.get_all("media_dir"):
             type_part, path = parse_media_dir(value)
             self._add_media_dir_row(type_part, path)
@@ -123,7 +212,6 @@ class ConfigWindow(Adw.Window):
 
     def _clear_field_errors(self) -> None:
         self.port_row.remove_css_class("error")
-        self.log_level_row.remove_css_class("error")
         for row_data in self.media_dir_rows:
             row_data["entry_row"].remove_css_class("error")
 
@@ -141,13 +229,13 @@ class ConfigWindow(Adw.Window):
             errors.append(str(exc))
             port_value = None
 
-        log_level_text = self.log_level_row.get_text().strip()
-        if log_level_text:
+        log_level_value = self._log_level_value()
+        if log_level_value:
             try:
-                validate_log_level(log_level_text)
+                validate_log_level(log_level_value)
             except ValidationError as exc:
-                self.log_level_row.add_css_class("error")
                 errors.append(str(exc))
+                log_level_value = None
 
         media_dir_values = []
         for row_data in self.media_dir_rows:
@@ -167,8 +255,8 @@ class ConfigWindow(Adw.Window):
             return
 
         self.config.set("port", port_value)
-        if log_level_text:
-            self.config.set("log_level", log_level_text)
+        if log_level_value:
+            self.config.set("log_level", log_level_value)
         else:
             self.config.remove("log_level")
         self.config.remove("media_dir")
