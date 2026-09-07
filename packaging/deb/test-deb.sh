@@ -31,7 +31,7 @@ echo "--> helper runs and rejects a subcommand outside its whitelist"
 echo "--> polkit action parses and points at the installed helper"
 python3 - <<'PY'
 import xml.etree.ElementTree as ET
-root = ET.parse("/usr/share/polkit-1/actions/com.leo.minidlnamanager.policy").getroot()
+root = ET.parse("/usr/share/polkit-1/actions/com.lvleo21.minidlnamanager.policy").getroot()
 paths = [a.text for a in root.iter("annotate")
          if a.get("key") == "org.freedesktop.policykit.exec.path"]
 assert paths == ["/usr/lib/minidlna-manager/helper"], paths

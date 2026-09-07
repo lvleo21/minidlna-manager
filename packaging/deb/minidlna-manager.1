@@ -24,7 +24,7 @@ installing the MiniDLNA package) is delegated to
 which is invoked through
 .BR pkexec (1)
 and authorized by the Polkit action
-.BR com.leo.minidlnamanager.manage .
+.BR com.lvleo21.minidlnamanager.manage .
 The helper accepts only a fixed set of subcommands and never runs a
 caller\-supplied command.
 .SH FILES
@@ -35,13 +35,13 @@ MiniDLNA configuration file edited by the application.
 .I /usr/lib/minidlna\-manager/helper
 Privileged helper.
 .TP
-.I /usr/share/polkit\-1/actions/com.leo.minidlnamanager.policy
+.I /usr/share/polkit\-1/actions/com.lvleo21.minidlnamanager.policy
 Polkit action defining the authorization required by the helper.
 .SH SEE ALSO
 .BR minidlnad (8),
 .BR minidlna.conf (5),
 .BR pkexec (1)
 .SH AUTHOR
-Leonardo Veras.
+lvleo21.
 .SH BUGS
 Report issues at https://github.com/lvleo21/minidlna\-manager/issues

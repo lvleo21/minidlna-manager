@@ -3,4 +3,4 @@ minidlna-manager (0.1.0-1) unstable; urgency=medium
   * Initial Debian package: app, privileged helper, Polkit action and
     desktop entry.
 
- -- Leonardo Veras <33973789+lvleo21@users.noreply.github.com>  Mon, 07 Sep 2026 00:00:00 -0300
+ -- lvleo21 <33973789+lvleo21@users.noreply.github.com>  Mon, 07 Sep 2026 00:00:00 -0300

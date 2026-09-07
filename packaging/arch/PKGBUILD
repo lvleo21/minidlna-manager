@@ -1,4 +1,4 @@
-# Maintainer: Leo
+# Maintainer: lvleo21
 pkgname=minidlna-manager
 pkgver=0.1.0
 pkgrel=1
@@ -42,8 +42,8 @@ package() {
 
   install -Dm755 helper/minidlna_manager_helper.py \
     "$pkgdir/usr/lib/minidlna-manager/helper"
-  install -Dm644 policy/com.leo.minidlnamanager.policy \
-    "$pkgdir/usr/share/polkit-1/actions/com.leo.minidlnamanager.policy"
+  install -Dm644 policy/com.lvleo21.minidlnamanager.policy \
+    "$pkgdir/usr/share/polkit-1/actions/com.lvleo21.minidlnamanager.policy"
   install -Dm644 packaging/arch/minidlna-manager.desktop \
     "$pkgdir/usr/share/applications/minidlna-manager.desktop"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"

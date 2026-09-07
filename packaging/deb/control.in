@@ -3,7 +3,7 @@ Version: @VERSION@
 Section: net
 Priority: optional
 Architecture: all
-Maintainer: Leonardo Veras <33973789+lvleo21@users.noreply.github.com>
+Maintainer: lvleo21 <33973789+lvleo21@users.noreply.github.com>
 Depends: python3 (>= 3.10), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, pkexec | policykit-1, acl, systemd
 Recommends: minidlna
 Installed-Size: @INSTALLED_SIZE@

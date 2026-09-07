@@ -41,8 +41,8 @@ done
 install -Dm755 "$here/launcher"                        "$stage/usr/bin/$pkgname"
 install -Dm755 "$repo_root/helper/minidlna_manager_helper.py" \
                                                        "$stage/usr/lib/$pkgname/helper"
-install -Dm644 "$repo_root/policy/com.leo.minidlnamanager.policy" \
-                        "$stage/usr/share/polkit-1/actions/com.leo.minidlnamanager.policy"
+install -Dm644 "$repo_root/policy/com.lvleo21.minidlnamanager.policy" \
+                        "$stage/usr/share/polkit-1/actions/com.lvleo21.minidlnamanager.policy"
 install -Dm644 "$repo_root/packaging/arch/$pkgname.desktop" \
                                     "$stage/usr/share/applications/$pkgname.desktop"
 install -Dm644 "$here/copyright"       "$stage/usr/share/doc/$pkgname/copyright"

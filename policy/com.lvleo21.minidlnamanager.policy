@@ -2,7 +2,7 @@
 <!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <policyconfig>
-  <vendor>Leo</vendor>
+  <vendor>lvleo21</vendor>
   <vendor_url>https://github.com/lvleo21/minidlna-manager</vendor_url>
   <icon_name>network-server</icon_name>
 
@@ -12,7 +12,7 @@
     subcommand (start/stop/restart/enable/disable/write-config/install-package);
     the helper itself enforces the fixed whitelist of subcommands (see RNF02).
   -->
-  <action id="com.leo.minidlnamanager.manage">
+  <action id="com.lvleo21.minidlnamanager.manage">
     <description>Manage the MiniDLNA service, its configuration file and package installation</description>
     <message>Authentication is required to manage MiniDLNA</message>
     <defaults>
