@@ -5,6 +5,12 @@ Linux. A UI nunca roda com privilégio elevado — toda operação que precisa d
 root (systemctl, escrita em `/etc/minidlna.conf`, instalação do pacote) passa
 por um helper dedicado, autorizado via Polkit.
 
+## Capturas de tela
+
+| Status | Configuração | Dispositivos |
+| --- | --- | --- |
+| ![Aba de status, com controles do serviço e log](.github/assets/status.png) | ![Aba de configuração, com o formulário do minidlna.conf](.github/assets/config.png) | ![Aba de dispositivos conectados](.github/assets/devices.png) |
+
 ## Funcionalidades
 
 - Detecta se o MiniDLNA está instalado e oferece instalar direto pela
