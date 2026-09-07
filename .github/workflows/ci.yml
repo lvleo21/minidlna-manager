@@ -24,3 +24,29 @@ jobs:
 
       - name: Test
         run: pytest --cov=core --cov=helper --cov=ui
+
+  deb-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build .deb
+        run: packaging/deb/build-deb.sh
+
+      - name: Lint package
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lintian
+          # initial-upload-closes-no-bugs only applies to uploads to the
+          # Debian archive, which this package is not.
+          lintian --fail-on error,warning \
+            --suppress-tags initial-upload-closes-no-bugs \
+            packaging/deb/dist/*.deb
+
+      - name: Install, smoke-test and purge
+        run: packaging/deb/test-deb.sh packaging/deb/dist/*.deb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: packaging/deb/dist/*.deb
