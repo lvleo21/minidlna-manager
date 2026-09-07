@@ -9,6 +9,8 @@ from gi.repository import Adw, Gtk
 
 from core import service_client
 from ui.async_utils import run_async
+from ui.toast_utils import show_error_toast, show_toast
+from ui.windows.config_window import ConfigWindow
 
 ACTIVE_LABELS = {
     "active": "Ativo",
@@ -39,7 +41,12 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _build_content(self) -> Gtk.Widget:
         toolbar_view = Adw.ToolbarView()
-        toolbar_view.add_top_bar(Adw.HeaderBar())
+        header = Adw.HeaderBar()
+        self.settings_button = Gtk.Button(icon_name="preferences-system-symbolic")
+        self.settings_button.set_tooltip_text("Configuração")
+        self.settings_button.connect("clicked", self._on_settings_clicked)
+        header.pack_end(self.settings_button)
+        toolbar_view.add_top_bar(header)
 
         self.install_banner = Adw.Banner(title="MiniDLNA não está instalado")
         self.install_banner.set_button_label("Instalar MiniDLNA")
@@ -101,12 +108,14 @@ class MainWindow(Adw.ApplicationWindow):
     # -- toasts -------------------------------------------------------------------
 
     def _toast(self, message: str) -> None:
-        self.toast_overlay.add_toast(Adw.Toast(title=message))
+        show_toast(self.toast_overlay, message)
 
     def _toast_error(self, message: str, error: Exception | None, result: dict | None) -> None:
-        detail = str(error) if error is not None else (result or {}).get("error", "")
-        text = f"{message}: {detail}" if detail else message
-        self.toast_overlay.add_toast(Adw.Toast(title=text, timeout=0))
+        show_error_toast(self.toast_overlay, message, error, result)
+
+    def _on_settings_clicked(self, _button: Gtk.Button) -> None:
+        config_window = ConfigWindow(transient_for=self, modal=True)
+        config_window.present()
 
     # -- install flow ---------------------------------------------------------------
 
@@ -116,7 +125,7 @@ class MainWindow(Adw.ApplicationWindow):
     def _on_installed_checked(self, result: dict | None, error: Exception | None) -> bool:
         installed = bool(result) and result.get("installed", False)
         self.install_banner.set_revealed(not installed)
-        for widget in (*self.control_buttons, self.boot_switch_row, self.status_row):
+        for widget in (*self.control_buttons, self.boot_switch_row, self.status_row, self.settings_button):
             widget.set_sensitive(installed)
         if installed:
             self._refresh_status()
